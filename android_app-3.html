@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#060818"/>
+<title>RemoteLink</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#060818;
+  --surface:#0d1225;
+  --card:#111827;
+  --card2:#161f35;
+  --border:#1e2d4a;
+  --border2:#243350;
+  --a1:#4f8ef7;
+  --a2:#7c5cf7;
+  --a3:#00d4ff;
+  --success:#00e87a;
+  --warn:#ffb340;
+  --danger:#ff4d6d;
+  --text:#f0f4ff;
+  --muted:#6b7fa3;
+  --muted2:#8a9dc0;
+  --r:16px;
+  --safe:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased}
+
+/* ── AMBIENT BACKGROUND ── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(79,142,247,.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(124,92,247,.10) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(0,212,255,.04) 0%, transparent 60%);
+}
+
+#app{height:100vh;display:flex;flex-direction:column;position:relative;z-index:1}
+.screen{flex:1;display:none;flex-direction:column}
+.screen.active{display:flex}
+
+/* ══ CONNECT SCREEN ══════════════════════════════════════════════ */
+#screen-connect{
+  overflow-y:auto;padding:0 20px calc(20px + var(--safe));
+  scroll-behavior:smooth;
+}
+
+/* Hero */
+.hero{
+  text-align:center;padding:52px 0 36px;position:relative
+}
+.hero-glow{
+  position:absolute;top:20px;left:50%;transform:translateX(-50%);
+  width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle, rgba(79,142,247,.25) 0%, transparent 70%);
+  pointer-events:none;animation:pulse-glow 3s ease-in-out infinite
+}
+@keyframes pulse-glow{
+  0%,100%{opacity:.6;transform:translateX(-50%) scale(1)}
+  50%{opacity:1;transform:translateX(-50%) scale(1.15)}
+}
+.logo-ring{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:88px;height:88px;margin-bottom:20px
+}
+.logo-ring::before{
+  content:'';position:absolute;inset:-3px;border-radius:28px;
+  background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));
+  opacity:.7;animation:spin-slow 6s linear infinite
+}
+@keyframes spin-slow{to{filter:hue-rotate(360deg)}}
+.logo-inner{
+  position:relative;width:82px;height:82px;border-radius:25px;
+  background:linear-gradient(145deg,#0f1f3d,#1a2a4a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;z-index:1;
+  box-shadow:0 8px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)
+}
+.hero-title{
+  font-size:32px;font-weight:800;letter-spacing:-.8px;
+  background:linear-gradient(135deg,#fff 30%,var(--a1));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text
+}
+.hero-sub{
+  font-size:13px;color:var(--muted2);margin-top:6px;letter-spacing:.2px
+}
+
+/* Status pill */
+.status-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 16px;border-radius:50px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  font-size:13px;color:var(--muted2);margin:0 auto 24px;
+  backdrop-filter:blur(8px);transition:all .3s
+}
+.status-pill.ok{background:rgba(0,232,122,.08);border-color:rgba(0,232,122,.3);color:var(--success)}
+.status-pill.err{background:rgba(255,77,109,.08);border-color:rgba(255,77,109,.3);color:var(--danger)}
+.status-pill.connecting{background:rgba(255,179,64,.08);border-color:rgba(255,179,64,.3);color:var(--warn)}
+.s-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.status-pill.ok .s-dot{background:var(--success);box-shadow:0 0 6px var(--success)}
+.status-pill.err .s-dot{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.status-pill.connecting .s-dot{background:var(--warn);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* Cards */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:20px;padding:22px;margin-bottom:14px;
+  box-shadow:0 4px 24px rgba(0,0,0,.3);
+  position:relative;overflow:hidden
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent)
+}
+.card-label{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.2px;color:var(--muted);margin-bottom:18px;
+  display:flex;align-items:center;gap:8px
+}
+.card-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Inputs */
+.field{margin-bottom:14px}
+.field-label{font-size:12px;color:var(--muted2);margin-bottom:7px;font-weight:500}
+.inp-wrap{position:relative}
+.inp-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  font-size:16px;pointer-events:none;opacity:.5
+}
+.field input{
+  width:100%;background:rgba(255,255,255,.04);
+  border:1px solid var(--border2);border-radius:13px;
+  color:var(--text);font-size:15px;padding:13px 14px 13px 42px;
+  outline:none;transition:all .2s;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.2)
+}
+.field input:focus{
+  border-color:var(--a1);
+  background:rgba(79,142,247,.06);
+  box-shadow:0 0 0 3px rgba(79,142,247,.12),inset 0 2px 8px rgba(0,0,0,.2)
+}
+.field input::placeholder{color:rgba(107,127,163,.5)}
+
+/* Buttons */
+.btn{
+  width:100%;padding:16px;border:none;border-radius:14px;
+  font-size:16px;font-weight:700;cursor:pointer;transition:all .18s;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  letter-spacing:.2px
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--a1) 0%,var(--a2) 100%);
+  color:#fff;
+  box-shadow:0 6px 24px rgba(79,142,247,.35),0 2px 8px rgba(0,0,0,.3);
+  position:relative;overflow:hidden
+}
+.btn-primary::before{
+  content:'';position:absolute;top:0;left:-100%;width:200%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+  transition:left .5s
+}
+.btn-primary:active{transform:scale(.97);box-shadow:0 2px 12px rgba(79,142,247,.3)}
+.btn-primary:active::before{left:100%}
+.btn-secondary{
+  background:rgba(255,255,255,.05);border:1px solid var(--border2);
+  color:var(--muted2);font-weight:600
+}
+.btn-qr{
+  width:100%;padding:14px;border-radius:13px;margin-bottom:12px;cursor:pointer;
+  background:rgba(79,142,247,.07);
+  border:1.5px dashed rgba(79,142,247,.4);
+  color:var(--a1);font-size:15px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  transition:all .2s
+}
+.btn-qr:active{background:rgba(79,142,247,.14)}
+
+/* Saved connections */
+.saved-item{
+  display:flex;align-items:center;gap:14px;padding:13px 0;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .15s
+}
+.saved-item:last-child{border:none}
+.saved-item:active{opacity:.6}
+.saved-avatar{
+  width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(79,142,247,.2),rgba(124,92,247,.2));
+  border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:18px
+}
+.saved-info{flex:1;min-width:0}
+.saved-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved-host{font-size:12px;color:var(--muted);margin-top:2px}
+.saved-badge{
+  font-size:10px;padding:3px 8px;border-radius:20px;
+  background:rgba(0,232,122,.1);color:var(--success);border:1px solid rgba(0,232,122,.2);
+  font-weight:600;flex-shrink:0
+}
+.saved-del{
+  color:var(--muted);font-size:14px;padding:6px 8px;
+  background:rgba(255,77,109,.08);border-radius:8px;border:1px solid rgba(255,77,109,.15);
+  flex-shrink:0
+}
+
+/* Log */
+.log-entry{
+  padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);
+  font-size:11.5px;color:var(--muted);line-height:1.5;word-break:break-all
+}
+
+/* ══ QR OVERLAY ═══════════════════════════════════════════════════ */
+#qr-overlay{
+  position:fixed;inset:0;z-index:200;background:#000;
+  display:none;flex-direction:column;align-items:center;justify-content:center
+}
+#qr-overlay.visible{display:flex}
+#qr-video{width:100%;height:100vh;object-fit:cover;position:absolute;inset:0}
+.qr-ui{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center}
+.qr-box{
+  width:250px;height:250px;position:relative;
+  border-radius:20px;overflow:hidden
+}
+.qr-corner{position:absolute;width:32px;height:32px}
+.qr-corner.tl{top:0;left:0;border-top:3px solid var(--a1);border-left:3px solid var(--a1);border-radius:8px 0 0 0}
+.qr-corner.tr{top:0;right:0;border-top:3px solid var(--a1);border-right:3px solid var(--a1);border-radius:0 8px 0 0}
+.qr-corner.bl{bottom:0;left:0;border-bottom:3px solid var(--a1);border-left:3px solid var(--a1);border-radius:0 0 0 8px}
+.qr-corner.br{bottom:0;right:0;border-bottom:3px solid var(--a1);border-right:3px solid var(--a1);border-radius:0 0 8px 0}
+.qr-line{
+  position:absolute;left:8px;right:8px;height:2px;top:0;
+  background:linear-gradient(90deg,transparent,var(--a1),var(--a3),var(--a1),transparent);
+  animation:scan-line 2s ease-in-out infinite;border-radius:2px
+}
+@keyframes scan-line{0%{top:8px;opacity:1}100%{top:242px;opacity:.3}}
+.qr-shade{
+  position:fixed;inset:0;z-index:1;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.72)
+}
+.qr-label{
+  margin-top:28px;color:rgba(255,255,255,.8);font-size:15px;font-weight:500;
+  text-align:center;max-width:260px;line-height:1.5
+}
+.qr-sub{margin-top:6px;color:rgba(255,255,255,.4);font-size:12px;text-align:center}
+.qr-close-btn{
+  position:absolute;top:52px;right:20px;z-index:3;
+  width:44px;height:44px;background:rgba(255,255,255,.1);
+  backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.15);
+  border-radius:50%;color:#fff;font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center
+}
+
+/* ══ REMOTE SCREEN ════════════════════════════════════════════════ */
+#screen-remote{background:#000;position:relative;overflow:hidden;touch-action:none}
+#stream{width:100%;height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-select:none}
+#stream-placeholder{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px
+}
+.spinner-ring{
+  width:48px;height:48px;border-radius:50%;
+  border:3px solid rgba(79,142,247,.2);
+  border-top-color:var(--a1);
+  animation:spin .8s linear infinite
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.placeholder-text{color:var(--muted2);font-size:14px;font-weight:500}
+
+/* Toolbar */
+#toolbar{
+  position:absolute;top:0;left:0;right:0;z-index:10;
+  background:linear-gradient(to bottom,rgba(6,8,24,.9) 0%,transparent 100%);
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px 20px;
+  display:flex;align-items:center;gap:8px;
+  transition:opacity .3s,transform .3s;
+  backdrop-filter:blur(0px)
+}
+#toolbar.hidden{opacity:0;pointer-events:none;transform:translateY(-10px)}
+.tb-btn{
+  width:38px;height:38px;border:none;
+  background:rgba(255,255,255,.1);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;color:#fff;font-size:17px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0
+}
+.tb-btn:active{background:rgba(255,255,255,.2);transform:scale(.93)}
+.tb-btn.danger{background:rgba(255,77,109,.2);border-color:rgba(255,77,109,.3)}
+.tb-spacer{flex:1}
+.tb-fps{
+  font-size:11px;color:rgba(255,255,255,.5);
+  background:rgba(0,0,0,.3);padding:4px 10px;border-radius:20px;
+  font-weight:600;letter-spacing:.3px
+}
+
+/* Stats */
+#stats{
+  position:absolute;top:64px;right:12px;z-index:10;
+  background:rgba(6,8,24,.85);backdrop-filter:blur(16px);
+  border:1px solid var(--border2);border-radius:14px;
+  padding:12px 16px;display:none;min-width:140px
+}
+#stats.visible{display:block}
+.stat-row{display:flex;justify-content:space-between;gap:20px;padding:3px 0;font-size:12px;color:var(--muted2)}
+.stat-val{color:#fff;font-weight:700}
+
+/* Bottom panel */
+#bottom-panel{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  background:linear-gradient(to top,rgba(6,8,24,.97) 70%,transparent);
+  padding:12px 14px calc(12px + var(--safe));
+  transition:opacity .3s,transform .3s
+}
+#bottom-panel.hidden{opacity:0;transform:translateY(16px);pointer-events:none}
+
+.mode-tabs{
+  display:flex;gap:6px;margin-bottom:10px;
+  background:rgba(255,255,255,.04);border-radius:14px;padding:4px
+}
+.mode-tab{
+  flex:1;padding:9px 4px;border-radius:10px;
+  color:rgba(255,255,255,.45);font-size:12px;font-weight:600;
+  cursor:pointer;text-align:center;transition:all .2s
+}
+.mode-tab.active{
+  background:rgba(79,142,247,.25);color:#fff;
+  box-shadow:0 2px 8px rgba(79,142,247,.2)
+}
+
+.keys-grid{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.k{
+  min-width:42px;padding:9px 10px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;color:rgba(255,255,255,.85);
+  font-size:12px;font-weight:600;cursor:pointer;text-align:center;
+  transition:all .1s;white-space:nowrap;
+  box-shadow:0 2px 4px rgba(0,0,0,.2)
+}
+.k:active{background:rgba(79,142,247,.35);border-color:rgba(79,142,247,.5);transform:scale(.95)}
+
+/* Keyboard overlay */
+#keyboard-overlay{
+  position:absolute;inset:0;z-index:20;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:none;flex-direction:column;justify-content:flex-end
+}
+#keyboard-overlay.visible{display:flex}
+.kb-popup{
+  background:var(--card2);
+  border-top:1px solid var(--border2);
+  border-radius:24px 24px 0 0;
+  padding:20px 20px calc(20px + var(--safe));
+  box-shadow:0 -8px 32px rgba(0,0,0,.5)
+}
+.kb-title{font-size:13px;color:var(--muted2);margin-bottom:12px;text-align:center;font-weight:600}
+#text-input{
+  width:100%;background:rgba(255,255,255,.06);
+  border:1px solid var(--border2);border-radius:13px;
+  color:var(--text);font-size:16px;padding:13px 16px;
+  outline:none;margin-bottom:14px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.2)
+}
+#text-input:focus{border-color:var(--a1)}
+.kb-row{display:flex;gap:8px}
+
+/* Cursor */
+#cursor{
+  position:absolute;width:14px;height:14px;border-radius:50%;
+  background:var(--a1);pointer-events:none;z-index:5;
+  transform:translate(-50%,-50%);display:none;
+  box-shadow:0 0 0 3px rgba(79,142,247,.3),0 0 12px rgba(79,142,247,.5)
+}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:calc(90px + var(--safe));left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:rgba(15,20,40,.95);
+  border:1px solid var(--border2);
+  color:var(--text);padding:11px 22px;border-radius:50px;
+  font-size:13px;font-weight:600;white-space:nowrap;
+  z-index:300;opacity:0;transition:all .28s;pointer-events:none;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  backdrop-filter:blur(12px)
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ CONNECT SCREEN ══════════════════════════════════════════ -->
+<div id="screen-connect" class="screen active">
+
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <div class="logo-ring">
+      <div class="logo-inner">🖥️</div>
+    </div>
+    <div class="hero-title">RemoteLink</div>
+    <div class="hero-sub">Contrôle à distance · Sécurisé</div>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-bottom:20px">
+    <div class="status-pill" id="status-pill">
+      <div class="s-dot" id="status-dot"></div>
+      <span id="status-text">Non connecté</span>
+    </div>
+  </div>
+
+  <!-- Connexion card -->
+  <div class="card">
+    <div class="card-label">Nouvelle connexion</div>
+    <div class="field">
+      <div class="field-label">Adresse du PC</div>
+      <div class="inp-wrap">
+        <span class="inp-icon">🌐</span>
+        <input id="inp-host" type="text" inputmode="url" placeholder="192.168.1.10:8765" autocomplete="off" autocorrect="off"/>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Token de sécurité</div>
+      <div class="inp-wrap">
+        <span class="inp-icon">🔑</span>
+        <input id="inp-token" type="password" placeholder="Token affiché dans le terminal" autocomplete="off"/>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:18px">
+      <div class="field-label">Nom de l'appareil (optionnel)</div>
+      <div class="inp-wrap">
+        <span class="inp-icon">💻</span>
+        <input id="inp-name" type="text" placeholder="Mon PC bureau"/>
+      </div>
+    </div>
+    <button class="btn-qr" onclick="openQrScanner()">
+      <span>📷</span> Scanner le QR code
+    </button>
+    <button class="btn btn-primary" onclick="connect()">
+      <span>⚡</span> Connecter
+    </button>
+  </div>
+
+  <!-- Saved -->
+  <div class="card" id="saved-card">
+    <div class="card-label">Connexions récentes</div>
+    <div id="saved-list">
+      <div style="color:var(--muted);font-size:13px;padding:6px 0;text-align:center">Aucune connexion sauvegardée</div>
+    </div>
+  </div>
+
+  <!-- Guide -->
+  <div class="card">
+    <div class="card-label">Démarrage rapide</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:9px;background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--a1);flex-shrink:0">1</div>
+        <div style="font-size:13px;color:var(--muted2);line-height:1.6">Lancez <code style="color:var(--a1);background:rgba(79,142,247,.1);padding:1px 6px;border-radius:5px">server.py</code> sur votre PC</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:9px;background:rgba(124,92,247,.15);border:1px solid rgba(124,92,247,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--a2);flex-shrink:0">2</div>
+        <div style="font-size:13px;color:var(--muted2);line-height:1.6">Notez l'adresse et le token affichés dans le terminal</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:28px;height:28px;border-radius:9px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--a3);flex-shrink:0">3</div>
+        <div style="font-size:13px;color:var(--muted2);line-height:1.6">Entrez-les ici ou scannez le QR code et appuyez sur <strong style="color:var(--text)">Connecter</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-label" style="display:flex;justify-content:space-between">
+      <span>Journal</span>
+      <span onclick="document.getElementById('diag-log').innerHTML=''" style="color:var(--muted);font-size:10px;cursor:pointer;text-transform:none;letter-spacing:0">Effacer</span>
+    </div>
+    <div id="diag-log" style="min-height:36px;max-height:140px;overflow-y:auto">
+      <div style="color:var(--muted);font-size:12px;padding:4px 0">Les événements s'affichent ici…</div>
+    </div>
+  </div>
+
+</div><!-- /screen-connect -->
+
+<!-- ══ REMOTE SCREEN ══════════════════════════════════════════ -->
+<div id="screen-remote" class="screen">
+  <img id="stream" alt="" draggable="false"/>
+  <div id="stream-placeholder">
+    <div class="spinner-ring"></div>
+    <div class="placeholder-text">Connexion en cours…</div>
+  </div>
+  <div id="cursor"></div>
+
+  <div id="toolbar">
+    <button class="tb-btn danger" onclick="disconnect()">✕</button>
+    <button class="tb-btn" onclick="toggleStats()">📊</button>
+    <button class="tb-btn" onclick="togglePanel()">🎮</button>
+    <div class="tb-spacer"></div>
+    <div class="tb-fps" id="tb-fps">— fps</div>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn" onclick="openKeyboard()">⌨️</button>
+    <button class="tb-btn" onclick="sendCtrlAltDel()">🔒</button>
+  </div>
+
+  <div id="stats">
+    <div class="stat-row"><span>FPS</span><span class="stat-val" id="s-fps">—</span></div>
+    <div class="stat-row"><span>Latence</span><span class="stat-val" id="s-lat">—</span></div>
+    <div class="stat-row"><span>Résolution</span><span class="stat-val" id="s-frame">—</span></div>
+    <div class="stat-row"><span>Réseau</span><span class="stat-val" id="s-kbps">—</span></div>
+  </div>
+
+  <div id="bottom-panel" class="hidden">
+    <div class="mode-tabs">
+      <div class="mode-tab active" onclick="setMode('touch')" id="tab-touch">👆 Souris</div>
+      <div class="mode-tab" onclick="setMode('scroll')" id="tab-scroll">📜 Défilement</div>
+      <div class="mode-tab" onclick="setMode('drag')" id="tab-drag">✊ Glisser</div>
+    </div>
+    <div class="keys-grid">
+      <div class="k" onclick="sendKey('ctrl','c')">⌘C</div>
+      <div class="k" onclick="sendKey('ctrl','v')">⌘V</div>
+      <div class="k" onclick="sendKey('ctrl','z')">⌘Z</div>
+      <div class="k" onclick="sendKey('ctrl','a')">⌘A</div>
+      <div class="k" onclick="sendKey('ctrl','x')">⌘X</div>
+      <div class="k" onclick="sendKey('escape')">Échap</div>
+      <div class="k" onclick="sendKey('tab')">Tab ↹</div>
+      <div class="k" onclick="sendKey('enter')">Entrée ↩</div>
+      <div class="k" onclick="sendKey('backspace')">⌫</div>
+      <div class="k" onclick="sendKey('delete')">Suppr</div>
+      <div class="k" onclick="sendKey('left')">◀</div>
+      <div class="k" onclick="sendKey('up')">▲</div>
+      <div class="k" onclick="sendKey('down')">▼</div>
+      <div class="k" onclick="sendKey('right')">▶</div>
+      <div class="k" onclick="sendKey('win')">⊞ Win</div>
+      <div class="k" onclick="sendCtrlAltDel()">CAD</div>
+    </div>
+  </div>
+
+  <div id="keyboard-overlay">
+    <div class="kb-popup">
+      <div class="kb-title">⌨️ Saisie de texte</div>
+      <input id="text-input" type="text" placeholder="Tapez votre texte puis envoyez…" autocomplete="off" autocorrect="off" autocapitalize="off"/>
+      <div class="kb-row">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeKeyboard()">Annuler</button>
+        <button class="btn btn-primary" style="flex:2" onclick="sendTextInput()">Envoyer ↩</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<!-- QR Overlay -->
+<div id="qr-overlay">
+  <div class="qr-shade"></div>
+  <video id="qr-video" autoplay playsinline muted></video>
+  <canvas id="qr-canvas" style="display:none"></canvas>
+  <div class="qr-ui">
+    <div class="qr-box">
+      <div class="qr-corner tl"></div>
+      <div class="qr-corner tr"></div>
+      <div class="qr-corner bl"></div>
+      <div class="qr-corner br"></div>
+      <div class="qr-line"></div>
+    </div>
+    <div class="qr-label">Pointez vers le QR code du terminal</div>
+    <div class="qr-sub">Le code s'affiche au lancement de server.py</div>
+  </div>
+  <button class="qr-close-btn" onclick="closeQrScanner()">✕</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════ STATE ═══════════════════════════════
+let ws=null,sessionId=null,screenW=1920,screenH=1080;
+let mode='touch',panelVisible=false,statsVisible=false;
+let toolbarTimer=null,toolbarHidden=false;
+let lastTouch=null,dragStart=null,touchMoved=false,longTapTimer=null,pinchDist=null;
+let frameCount=0,lastFrameTime=Date.now(),latencies=[],totalBytes=0;
+let fpsInterval,pingInterval;
+let qrStream=null,qrAnimFrame=null;
+
+// ═══════════════════════════ SAVED ═══════════════════════════════
+function loadSaved(){try{return JSON.parse(localStorage.getItem('rl_saved')||'[]')}catch{return[]}}
+function saveSaved(arr){localStorage.setItem('rl_saved',JSON.stringify(arr))}
+function renderSaved(){
+  const list=loadSaved(),el=document.getElementById('saved-list');
+  if(!list.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:6px 0;text-align:center">Aucune connexion sauvegardée</div>';return}
+  el.innerHTML=list.map((c,i)=>`
+    <div class="saved-item" onclick="useSaved(${i})">
+      <div class="saved-avatar">💻</div>
+      <div class="saved-info">
+        <div class="saved-name">${c.name||c.host}</div>
+        <div class="saved-host">${c.host}</div>
+      </div>
+      <span class="saved-badge">Récent</span>
+      <span class="saved-del" onclick="event.stopPropagation();deleteSaved(${i})">✕</span>
+    </div>`).join('')
+}
+function useSaved(i){const c=loadSaved()[i];document.getElementById('inp-host').value=c.host;document.getElementById('inp-token').value=c.token;document.getElementById('inp-name').value=c.name||'';connect()}
+function deleteSaved(i){const l=loadSaved();l.splice(i,1);saveSaved(l);renderSaved()}
+function saveConnection(host,token,name){
+  const l=loadSaved(),idx=l.findIndex(c=>c.host===host),e={host,token,name:name||host,ts:Date.now()};
+  if(idx>=0)l[idx]=e;else l.unshift(e);
+  saveSaved(l.slice(0,10));renderSaved()
+}
+
+// ═══════════════════════════ STATUS ══════════════════════════════
+function setStatus(state,text){
+  const pill=document.getElementById('status-pill');
+  pill.className='status-pill '+(state==='ok'?'ok':state==='err'?'err':state==='connecting'?'connecting':'');
+  document.getElementById('status-dot').className='s-dot';
+  document.getElementById('status-text').textContent=text
+}
+
+// ═══════════════════════════ LOG ═════════════════════════════════
+function addLog(msg){
+  const log=document.getElementById('diag-log');if(!log)return;
+  const d=document.createElement('div');d.className='log-entry';
+  d.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+  log.prepend(d);while(log.children.length>20)log.removeChild(log.lastChild)
+}
+
+// ═══════════════════════ CONNECTION ══════════════════════════════
+function connect(){
+  const host=document.getElementById('inp-host').value.trim();
+  const token=document.getElementById('inp-token').value.trim();
+  const name=document.getElementById('inp-name').value.trim();
+  if(!host){toast('⚠️ Adresse requise');return}
+  if(!token){toast('⚠️ Token requis');return}
+  if(ws){ws.close();ws=null}
+  const cleanHost=host.replace(/^wss?:\/\//i,'').trim();
+  const url='ws://'+cleanHost;
+  setStatus('connecting','Connexion à '+cleanHost+'…');
+  addLog('🔄 Connexion → '+url);
+  try{ws=new WebSocket(url)}catch(e){setStatus('err','URL invalide');addLog('❌ URL invalide: '+e.message);toast('❌ URL invalide');return}
+  const timeout=setTimeout(()=>{if(ws&&ws.readyState!==1){addLog('❌ Timeout');setStatus('err','Timeout — serveur injoignable');toast('❌ Pas de réponse du serveur');ws.close();ws=null}},8000);
+  ws.onopen=()=>{clearTimeout(timeout);addLog('✅ WebSocket ouvert — auth…');setStatus('connecting','Authentification…');ws.send(JSON.stringify({type:'auth',token}))};
+  ws.onmessage=async(ev)=>{
+    const data=typeof ev.data==='string'?ev.data:await ev.data.text();
+    totalBytes+=data.length;
+    let msg;try{msg=JSON.parse(data)}catch{return}
+    if(msg.type==='auth_ok'){
+      sessionId=msg.session;screenW=msg.screen_w||1920;screenH=msg.screen_h||1080;
+      setStatus('ok','Connecté · '+(msg.hostname||'PC'));
+      addLog('✅ Connecté ! '+( msg.hostname||'?')+' ('+screenW+'×'+screenH+')');
+      saveConnection(host,token,name);showRemote();toast('✅ Connecté à '+(msg.hostname||host));startStats()
+    }else if(msg.type==='auth_fail'){setStatus('err','Token invalide');addLog('❌ Token refusé');toast('❌ Token incorrect')}
+    else if(msg.type==='frame'){
+      const img=document.getElementById('stream');
+      const ph=document.getElementById('stream-placeholder');
+      if(ph.style.display!=='none')ph.style.display='none';
+      img.src='data:image/jpeg;base64,'+msg.data;frameCount++;
+      if(msg.ts)latencies.push(Date.now()-msg.ts*1000)
+    }else if(msg.type==='session_expired'){toast('⏱️ Session expirée');disconnect()}
+  };
+  ws.onerror=()=>{clearTimeout(timeout);addLog('❌ Erreur WebSocket');setStatus('err','Impossible de joindre le serveur');toast('❌ Connexion impossible')};
+  ws.onclose=(e)=>{clearTimeout(timeout);addLog('🔌 Fermé (code '+e.code+')');setStatus('err','Déconnecté');stopStats();if(document.getElementById('screen-remote').classList.contains('active')){showConnect();toast('🔌 Connexion perdue')}}
+}
+function disconnect(){if(ws){ws.close();ws=null}sessionId=null;stopStats();showConnect()}
+function send(obj){if(!ws||ws.readyState!==1||!sessionId)return;obj.session=sessionId;ws.send(JSON.stringify(obj))}
+
+// ═══════════════════════ SCREENS ═════════════════════════════════
+function showRemote(){
+  document.getElementById('screen-connect').classList.remove('active');
+  document.getElementById('screen-remote').classList.add('active');
+  document.getElementById('stream-placeholder').style.display='';
+  resetToolbarTimer();attachTouchEvents()
+}
+function showConnect(){
+  document.getElementById('screen-remote').classList.remove('active');
+  document.getElementById('screen-connect').classList.add('active');
+  detachTouchEvents();clearTimeout(toolbarTimer);panelVisible=false;
+  document.getElementById('bottom-panel').classList.add('hidden')
+}
+
+// ═══════════════════════ COORDS ══════════════════════════════════
+function toRelative(cx,cy){
+  const el=document.getElementById('stream'),r=el.getBoundingClientRect();
+  const ea=r.width/r.height,sa=screenW/screenH;
+  let iw,ih,ix,iy;
+  if(ea>sa){ih=r.height;iw=ih*sa;ix=r.left+(r.width-iw)/2;iy=r.top}
+  else{iw=r.width;ih=iw/sa;ix=r.left;iy=r.top+(r.height-ih)/2}
+  return{x:Math.max(0,Math.min(1,(cx-ix)/iw)),y:Math.max(0,Math.min(1,(cy-iy)/ih))}
+}
+function moveCursor(cx,cy){const c=document.getElementById('cursor');c.style.display='block';c.style.left=cx+'px';c.style.top=cy+'px'}
+
+// ═══════════════════════ TOUCH ════════════════════════════════════
+let _th=null;
+function attachTouchEvents(){
+  const el=document.getElementById('screen-remote');if(_th)detachTouchEvents();
+  _th={s:onStart,m:onMove,e:onEnd};
+  el.addEventListener('touchstart',onStart,{passive:false});
+  el.addEventListener('touchmove',onMove,{passive:false});
+  el.addEventListener('touchend',onEnd,{passive:false})
+}
+function detachTouchEvents(){
+  const el=document.getElementById('screen-remote');
+  if(_th){el.removeEventListener('touchstart',_th.s);el.removeEventListener('touchmove',_th.m);el.removeEventListener('touchend',_th.e);_th=null}
+}
+function onStart(e){
+  if(e.target.closest('#toolbar,#bottom-panel,#keyboard-overlay,#stats'))return;
+  e.preventDefault();resetToolbarTimer();
+  if(e.touches.length===2){const t1=e.touches[0],t2=e.touches[1];pinchDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);clearTimeout(longTapTimer);return}
+  const t=e.touches[0];lastTouch={x:t.clientX,y:t.clientY,time:Date.now()};touchMoved=false;
+  if(mode==='drag'){dragStart=toRelative(t.clientX,t.clientY)}
+  longTapTimer=setTimeout(()=>{if(!touchMoved){const r=toRelative(t.clientX,t.clientY);send({type:'mouse_click',...r,button:'right'});toast('🖱 Clic droit')}},600)
+}
+function onMove(e){
+  e.preventDefault();
+  if(e.touches.length===2){
+    const t1=e.touches[0],t2=e.touches[1];
+    const nd=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
+    const cx=(t1.clientX+t2.clientX)/2,cy=(t1.clientY+t2.clientY)/2;
+    const r=toRelative(cx,cy);
+    if(pinchDist!==null){send({type:'mouse_scroll',...r,dx:0,dy:(nd-pinchDist)/40});pinchDist=nd}
+    return
+  }
+  const t=e.touches[0];if(!lastTouch)return;
+  const dx=t.clientX-lastTouch.x,dy=t.clientY-lastTouch.y;
+  if(Math.abs(dx)>3||Math.abs(dy)>3){touchMoved=true;clearTimeout(longTapTimer)}
+  moveCursor(t.clientX,t.clientY);
+  if(mode==='touch'){send({type:'mouse_move',...toRelative(t.clientX,t.clientY)})}
+  else if(mode==='scroll'){const r=toRelative(t.clientX,t.clientY);send({type:'mouse_scroll',...r,dx:dx/60,dy:dy/40})}
+  lastTouch={x:t.clientX,y:t.clientY,time:Date.now()}
+}
+function onEnd(e){
+  e.preventDefault();clearTimeout(longTapTimer);
+  if(e.changedTouches.length===0)return;
+  const t=e.changedTouches[0];
+  if(e.touches.length===0)pinchDist=null;
+  if(mode==='drag'&&dragStart){if(touchMoved){const r=toRelative(t.clientX,t.clientY);send({type:'mouse_drag',x1:dragStart.x,y1:dragStart.y,x2:r.x,y2:r.y})}dragStart=null;return}
+  if(!touchMoved&&lastTouch){const r=toRelative(t.clientX,t.clientY);if(Date.now()-lastTouch.time<250)send({type:'mouse_click',...r,button:'left',double:false})}
+  lastTouch=null
+}
+document.getElementById('stream').addEventListener('dblclick',e=>{send({type:'mouse_click',...toRelative(e.clientX,e.clientY),button:'left',double:true})});
+
+// ═══════════════════════ TOOLBAR ═════════════════════════════════
+function resetToolbarTimer(){
+  clearTimeout(toolbarTimer);
+  const tb=document.getElementById('toolbar');tb.classList.remove('hidden');toolbarHidden=false;
+  toolbarTimer=setTimeout(()=>{if(!panelVisible&&!statsVisible){tb.classList.add('hidden');toolbarHidden=true}},3000)
+}
+function togglePanel(){panelVisible=!panelVisible;document.getElementById('bottom-panel').classList.toggle('hidden',!panelVisible);resetToolbarTimer()}
+function toggleStats(){statsVisible=!statsVisible;document.getElementById('stats').classList.toggle('visible',statsVisible)}
+function setMode(m){mode=m;document.querySelectorAll('.mode-tab').forEach(e=>e.classList.remove('active'));document.getElementById('tab-'+m).classList.add('active')}
+
+// ═══════════════════════ KEYBOARD ════════════════════════════════
+function openKeyboard(){document.getElementById('keyboard-overlay').classList.add('visible');setTimeout(()=>document.getElementById('text-input').focus(),100)}
+function closeKeyboard(){document.getElementById('keyboard-overlay').classList.remove('visible');document.getElementById('text-input').value=''}
+function sendTextInput(){const t=document.getElementById('text-input').value;if(t){send({type:'type_text',text:t});toast('⌨️ Texte envoyé')}closeKeyboard()}
+function sendKey(...keys){keys.length===1?send({type:'key_press',key:keys[0]}):send({type:'key_hotkey',keys});resetToolbarTimer()}
+function sendCtrlAltDel(){send({type:'key_hotkey',keys:['ctrl','alt','delete']});toast('🔒 Ctrl+Alt+Suppr')}
+
+// ═══════════════════════ STATS ═══════════════════════════════════
+function startStats(){
+  fpsInterval=setInterval(()=>{
+    const now=Date.now(),dt=(now-lastFrameTime)/1000;
+    const fps=(frameCount/dt).toFixed(1);
+    const lat=latencies.length?Math.round(latencies.reduce((a,b)=>a+b,0)/latencies.length)+'ms':'—';
+    const kbps=Math.round(totalBytes*8/dt/1000);
+    document.getElementById('tb-fps').textContent=fps+' fps';
+    document.getElementById('s-fps').textContent=fps;
+    document.getElementById('s-lat').textContent=lat;
+    document.getElementById('s-kbps').textContent=kbps+' kbps';
+    const img=document.getElementById('stream');
+    document.getElementById('s-frame').textContent=img.naturalWidth?img.naturalWidth+'×'+img.naturalHeight:'—';
+    frameCount=0;totalBytes=0;latencies=[];lastFrameTime=now
+  },1000);
+  pingInterval=setInterval(()=>send({type:'ping'}),10000)
+}
+function stopStats(){clearInterval(fpsInterval);clearInterval(pingInterval);document.getElementById('tb-fps').textContent='— fps'}
+
+// ═══════════════════════ TOAST ═══════════════════════════════════
+let toastTimer;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
+
+// ═══════════════════════ QR SCANNER ══════════════════════════════
+async function openQrScanner(){
+  const overlay=document.getElementById('qr-overlay'),video=document.getElementById('qr-video');
+  if(!('BarcodeDetector' in window)){toast('❌ Utilisez Chrome Android 83+');return}
+  overlay.classList.add('visible');
+  try{
+    qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    video.srcObject=qrStream;await video.play();scanLoop()
+  }catch(err){
+    toast(err.name==='NotAllowedError'?'❌ Permission caméra refusée':'❌ Caméra: '+err.message);
+    closeQrScanner()
+  }
+}
+async function scanLoop(){
+  const video=document.getElementById('qr-video'),detector=new BarcodeDetector({formats:['qr_code']});
+  async function tick(){
+    if(!qrStream)return;
+    try{if(video.readyState===video.HAVE_ENOUGH_DATA){const codes=await detector.detect(video);if(codes.length>0){onQrDetected(codes[0].rawValue);return}}}catch(e){}
+    qrAnimFrame=requestAnimationFrame(tick)
+  }
+  qrAnimFrame=requestAnimationFrame(tick)
+}
+function onQrDetected(data){
+  try{
+    const obj=JSON.parse(data);
+    if(obj.host&&obj.token){document.getElementById('inp-host').value=obj.port?obj.host+':'+obj.port:obj.host;document.getElementById('inp-token').value=obj.token;toast('✅ QR scanné !');closeQrScanner()}
+    else{qrAnimFrame=requestAnimationFrame(()=>scanLoop())}
+  }catch{
+    if(data.includes('|')){const[h,t]=data.split('|');document.getElementById('inp-host').value=h.trim();document.getElementById('inp-token').value=t.trim();toast('✅ QR scanné !');closeQrScanner()}
+    else qrAnimFrame=requestAnimationFrame(()=>scanLoop())
+  }
+}
+function closeQrScanner(){
+  cancelAnimationFrame(qrAnimFrame);
+  if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}
+  const v=document.getElementById('qr-video');if(v)v.srcObject=null;
+  document.getElementById('qr-overlay').classList.remove('visible')
+}
+
+// ═══════════════════════ INIT ════════════════════════════════════
+renderSaved();
+document.getElementById('screen-remote').addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{
+  if(!sessionId||e.target.tagName==='INPUT')return;
+  const key=e.key.toLowerCase(),mods=[];
+  if(e.ctrlKey)mods.push('ctrl');if(e.altKey)mods.push('alt');if(e.shiftKey)mods.push('shift');if(e.metaKey)mods.push('win');
+  mods.push(key);mods.length>1?send({type:'key_hotkey',keys:mods}):send({type:'key_press',key});e.preventDefault()
+});
+document.getElementById('text-input').addEventListener('keydown',e=>{if(e.key==='Enter')sendTextInput()});
+document.getElementById('screen-remote').addEventListener('touchstart',e=>{if(toolbarHidden&&e.touches[0].clientY<60)resetToolbarTimer()},{passive:true});
+</script>
+</body>
+</html>
